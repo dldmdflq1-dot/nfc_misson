@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-  <title>NFC 미션 릴레이 v2.4</title>
+  <title>NFC 미션 릴레이 v2.5</title>
   <style>
     :root{
       --bg:#fff8fb; --text:#1e1c2a; --sub:#6b6b87; --line:#e9e2ef;
@@ -42,7 +42,7 @@
     .msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)} .msg.warn{color:var(--warn)}
 
     /* 힌트 버튼 */
-    .hint-btn{appearance:none; border:none; cursor:pointer; font-size:15px; font-weight:700; 
+    .hint-btn{appearance:none; border:none; cursor:pointer; font-size:15px; font-weight:700;
       background:linear-gradient(90deg,rgba(255,215,232,.5),rgba(200,247,255,.5));
       padding:10px 12px; border-radius:12px; border:1px solid var(--line)}
     .hint-btn:disabled{opacity:.6; cursor:not-allowed}
@@ -70,13 +70,12 @@
 
     /* 팀 설정: 가로 스크롤 컬럼 */
     .teamColsWrap{overflow-x:auto; padding-bottom:6px}
-    .teamCols{display:grid; grid-auto-flow:column; grid-auto-columns: 420px; gap:12px; align-items:start}
-    .teamCard{border:1.5px solid var(--line); border-radius:12px; padding:10px; background:#fff; min-width:420px}
-    .stageRowX4{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
-    .stageRow5{display:grid; grid-template-columns:64px 1fr 1fr 1fr 2fr; gap:8px}
-    .stageHeader{display:grid; grid-template-columns:64px 1fr 1fr 1fr 2fr; gap:8px; font-size:12px; color:var(--sub); margin-bottom:4px; border-bottom:1px dashed var(--line); padding-bottom:4px}
+    .teamCols{display:grid; grid-auto-flow:column; grid-auto-columns: 480px; gap:12px; align-items:start}
+    .teamCard{border:1.5px solid var(--line); border-radius:12px; padding:10px; background:#fff; min-width:480px}
+    .stageRow{display:grid; grid-template-columns:64px 1fr 1fr 0.8fr 1.5fr 1.5fr; gap:8px; align-items:center}
+    .stageHeader{display:grid; grid-template-columns:64px 1fr 1fr 0.8fr 1.5fr 1.5fr; gap:8px; font-size:12px; color:var(--sub); margin-bottom:4px; border-bottom:1px dashed var(--line); padding-bottom:4px}
     .stageBadge{display:flex; align-items:center; justify-content:center; height:38px; border:1.5px solid var(--line); border-radius:10px; background:#fafafa; font-weight:700}
-    @media (max-width:1400px){ .stageRowX4{grid-template-columns:1fr 1fr} }
+    @media (max-width:1400px){ .stageRow, .stageHeader {grid-template-columns:1fr 1fr} }
 
     /* 공용 모달 */
     .modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:50}
@@ -92,7 +91,6 @@
   </style>
 </head>
 <body>
-  <!-- 게임 화면: team 파라미터 있을 때만 표시 -->
   <div class="screen hidden" id="gameScreen">
     <div class="status">
       <div class="left">
@@ -114,7 +112,6 @@
     </div>
   </div>
 
-  <!-- 완료 팝업(기존 유지) -->
   <div class="modal hidden" id="completeModal">
     <div class="modal-inner">
       <h3>모든 미션 완료!</h3>
@@ -123,7 +120,6 @@
     </div>
   </div>
 
-  <!-- 힌트 팝업 -->
   <div class="modal hidden" id="hintModal">
     <div class="modal-inner">
       <h3>힌트</h3>
@@ -133,7 +129,6 @@
     </div>
   </div>
 
-  <!-- 코드 결과 팝업 -->
   <div class="modal hidden" id="resultModal">
     <div class="modal-inner" id="resultInner">
       <div id="resultIcon" style="font-size:56px">✅</div>
@@ -143,7 +138,6 @@
     </div>
   </div>
 
-  <!-- 제작 화면 -->
   <div class="admin" id="admin">
     <h3>제작화면 · 관리자</h3>
 
@@ -236,12 +230,12 @@
   function hashCfg(){ const h=location.hash.replace(/^#/,''); const sp=new URLSearchParams(h); return sp.get('cfg')||''; }
 
   /* ===================== 데이터 구조 ===================== */
-  const DEFAULT_V24 = {
+  const DEFAULT_V25 = {
     title: 'NFC 미션',
     stages: 5,
     ui: { scanImg:'', completeImg:'' },
-    wrongPolicy: 'keep',     // 코드 오답: keep | back1 | reset
-    nfcFailPolicy: 'keep',   // 태그 실패: keep | back1 | reset1
+    wrongPolicy: 'keep',      // 코드 오답: keep | back1 | reset
+    nfcFailPolicy: 'keep',    // 태그 실패: keep | back1 | reset1
     traps: [ /* { token:'TRAP1', mode:'reset1', message:'함정입니다. 1단계로 돌아갑니다.' } */ ],
     finalMessage: '모든 미션 완료! 교실로 복귀하세요.',
     teams: [
@@ -253,14 +247,14 @@
 
   function loadConfig(){
     const fromHash = hashCfg();
-    if(fromHash){ try{ const cfg = decodeCfg(fromHash); localStorage.setItem('nfc-mission-v24:config', JSON.stringify(cfg)); return cfg; }catch(_){} }
-    const raw = localStorage.getItem('nfc-mission-v24:config');
-    return raw ? JSON.parse(raw) : structuredClone(DEFAULT_V24);
+    if(fromHash){ try{ const cfg = decodeCfg(fromHash); localStorage.setItem('nfc-mission-v25:config', JSON.stringify(cfg)); return cfg; }catch(_){} }
+    const raw = localStorage.getItem('nfc-mission-v25:config');
+    return raw ? JSON.parse(raw) : structuredClone(DEFAULT_V25);
   }
-  function saveConfig(){ localStorage.setItem('nfc-mission-v24:config', JSON.stringify(CONFIG)); }
+  function saveConfig(){ localStorage.setItem('nfc-mission-v25:config', JSON.stringify(CONFIG)); }
 
   const currentTeam = ()=> CONFIG.teams.find(t=>t.slug===teamParam()) || null;
-  const stateKey = ()=> `nfc-mission-v24:state:${currentTeam()?.slug || 'default'}`;
+  const stateKey = ()=> `nfc-mission-v25:state:${currentTeam()?.slug || 'default'}`;
   function loadState(){ const raw=localStorage.getItem(stateKey()); return raw ? JSON.parse(raw) : { stage:1, lastHint:'', lastHintImg:'' }; }
   function saveState(){ localStorage.setItem(stateKey(), JSON.stringify(STATE)); }
 
@@ -311,7 +305,7 @@
       if(!('NDEFReader' in window)) setMsg('이 활동은 NFC 지원 기기에서만 진행됩니다.', 'warn');
       el('btnScan').addEventListener('click', onScanClick);
       $('#btnHint').addEventListener('click', showHintPopup);
-      if(STATE.stage>CONFIG.stages) setHint(CONFIG.finalMessage); 
+      if(STATE.stage>CONFIG.stages) setHint(CONFIG.finalMessage);
       else if(STATE.lastHint) setHint(STATE.lastHint, STATE.lastHintImg);
       showScanUI();
     } else {
@@ -378,18 +372,16 @@
       ensureTeamShape(t);
       const card = document.createElement('div'); card.className='teamCard';
       let rows='';
-      rows += `<div class="stageHeader"><div>단계</div><div>장소</div><div>NFC 텍스트</div><div>코드</div><div>다음 힌트</div></div>`;
+      rows += `<div class="stageHeader"><div>단계</div><div>장소</div><div>NFC 텍스트</div><div>코드</div><div>힌트 텍스트</div><div>힌트 이미지 URL</div></div>`;
       for(let i=0;i<CONFIG.stages;i++){
+        const s = t.steps[i] || {};
         const badge = `<div class="stageBadge">${i+1}단계</div>`;
-        const place = `<input data-k="place" data-ti="${ti}" data-si="${i}" placeholder="예: 과학실" value="${t.steps[i]?.place||''}">`;
-        const token = `<input data-k="token" data-ti="${ti}" data-si="${i}" placeholder="예: SCIENCE" value="${t.steps[i]?.token||''}">`;
-        const code  = `<input data-k="code"  data-ti="${ti}" data-si="${i}" placeholder="예: 5712" value="${t.steps[i]?.code||''}">`;
-        const hint  = `
-          <div class="grid" style="gap:6px">
-            <input data-k="hint" data-ti="${ti}" data-si="${i}" placeholder="예: 과학실 책장 뒤" value="${t.steps[i]?.hint||''}">
-            <input data-k="hintImg" data-ti="${ti}" data-si="${i}" placeholder="힌트 이미지 URL(선택)" value="${t.steps[i]?.hintImg||''}">
-          </div>`;
-        rows += `<div class="stageRow5">${badge}<div>${place}</div><div>${token}</div><div>${code}</div><div>${hint}</div></div>`;
+        const place = `<input data-k="place" data-ti="${ti}" data-si="${i}" placeholder="예: 과학실" value="${s.place||''}">`;
+        const token = `<input data-k="token" data-ti="${ti}" data-si="${i}" placeholder="예: SCIENCE" value="${s.token||''}">`;
+        const code  = `<input data-k="code"  data-ti="${ti}" data-si="${i}" placeholder="예: 5712" value="${s.code||''}">`;
+        const hint  = `<input data-k="hint" data-ti="${ti}" data-si="${i}" placeholder="예: 과학실 책장 뒤" value="${s.hint||''}">`;
+        const hintImg = `<input data-k="hintImg" data-ti="${ti}" data-si="${i}" placeholder="https://.../hint.png (선택)" value="${s.hintImg||''}">`;
+        rows += `<div class="stageRow">${badge}<div>${place}</div><div>${token}</div><div>${code}</div><div>${hint}</div><div>${hintImg}</div></div>`;
       }
       card.innerHTML = `
         <div class="grid two" style="margin-bottom:6px">
@@ -402,7 +394,7 @@
       // listeners
       card.querySelector('input[data-k="tname"]').addEventListener('input', e=>{ t.name = e.target.value; });
       card.querySelector('input[data-k="slug"]').addEventListener('input', e=>{ t.slug = e.target.value; });
-      card.querySelectorAll('input[data-k]').forEach(inp=>{ const k=inp.dataset.k; if(k==='tname'||k==='slug') return; inp.addEventListener('input', e=>{ const i=parseInt(e.target.dataset.si,10); t.steps[i] = t.steps[i]||{place:'',token:'',code:'',hint:'',hintImg:''}; t.steps[i][k]=e.target.value; }); });
+      card.querySelectorAll('input[data-si]').forEach(inp=>{ const k=inp.dataset.k; if(k==='tname'||k==='slug') return; inp.addEventListener('input', e=>{ const i=parseInt(e.target.dataset.si,10); t.steps[i] = t.steps[i]||{place:'',token:'',code:'',hint:'',hintImg:''}; t.steps[i][k]=e.target.value; }); });
     });
   }
 
@@ -453,7 +445,9 @@
     const trap = (CONFIG.traps||[]).find(tr=>String(tr.token).toUpperCase()===TK);
     if(trap){
       if(trap.mode==='reset1') STATE.stage=1; else STATE.stage=Math.max(1, STATE.stage-1);
-      saveState(); renderStatusLine(); setHint(''); setMsg(trap.message||'함정입니다.', 'bad'); playBad(); showScanUI(); return;
+      saveState(); renderStatusLine(); setHint(''); setMsg(trap.message||'함정입니다.', 'bad'); playBad();
+      showResultPopup(false, '함정!', trap.message||'함정입니다.');
+      showScanUI(); return;
     }
 
     // 2) 정상 단계
@@ -462,10 +456,16 @@
     const expect = String(step.token||'').toUpperCase();
     if(TK === expect){ scanOK = true; setMsg('스캔 성공', 'ok'); playOK(); showCodeUI(); }
     else {
-      setMsg('실패: 다른 단계의 NFC 태그입니다.', 'bad'); playBad();
       const pol = CONFIG.nfcFailPolicy||'keep';
-      if(pol==='reset1'){ STATE.stage=1; STATE.lastHint=''; STATE.lastHintImg=''; saveState(); renderStatusLine(); setHint('초기화됨. 1단계부터 다시 시작하세요.'); }
-      else if(pol==='back1'){ STATE.stage=Math.max(1, STATE.stage-1); saveState(); renderStatusLine(); setHint('한 단계 뒤로 이동했습니다.'); }
+      let msg = '실패: 다른 단계의 NFC 태그입니다.';
+      if(pol==='reset1'){
+        STATE.stage=1; STATE.lastHint=''; STATE.lastHintImg=''; saveState(); renderStatusLine(); setHint('초기화됨. 1단계부터 다시 시작하세요.');
+        msg = '1단계로 돌아갑니다.';
+      } else if(pol==='back1'){
+        STATE.stage=Math.max(1, STATE.stage-1); saveState(); renderStatusLine(); setHint('한 단계 뒤로 이동했습니다.');
+        msg = '한 단계 뒤로 이동합니다.';
+      }
+      setMsg('실패: 다른 단계의 NFC 태그입니다.', 'bad'); playBad(); showResultPopup(false, '실패!', msg);
       showScanUI();
     }
   }
@@ -473,7 +473,7 @@
   async function onSubmitCode(){
     if(!scanOK) return setMsg('먼저 스캔을 완료하세요.','warn');
     const t = currentTeam(); const idx = Math.min(STATE.stage, CONFIG.stages)-1; const step = t.steps[idx];
-    const input = (document.getElementById('codeInput').value||'').trim(); if(!input) return setMsg('코드를 입력하세요.','warn');
+    const input = (el('codeInput').value||'').trim(); if(!input) return setMsg('코드를 입력하세요.','warn');
     const ok = await sha256(String(step.code||'')) === await sha256(String(input));
     if(ok){
       const hint = step.hint||'';
@@ -493,17 +493,20 @@
       showScanUI();
     } else {
       setMsg('코드가 틀렸습니다.','bad'); playBad();
-      showResultPopup(false, '실패!', '코드를 다시 확인하세요.');
       const pol = (CONFIG.wrongPolicy||'keep');
+      let msg = '코드를 다시 확인하세요.';
       if(pol==='reset'){
         STATE.stage=1; STATE.lastHint=''; STATE.lastHintImg='';
         saveState(); renderStatusLine(); setHint('초기화됨. 1단계부터 다시 시작하세요.');
+        msg = '1단계로 초기화됩니다.';
         showScanUI();
       } else if(pol==='back1'){
         STATE.stage=Math.max(1, STATE.stage-1);
         saveState(); renderStatusLine(); setHint('한 단계 뒤로 이동했습니다.');
+        msg = '한 단계 뒤로 이동합니다.';
         showScanUI();
       }
+      showResultPopup(false, '실패!', msg);
     }
   }
 
