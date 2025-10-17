@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <title>NFC 미션 릴레이 v2.4</title>
+  <style>
+    :root{
+      --bg:#fff8fb; --text:#1e1c2a; --sub:#6b6b87; --line:#e9e2ef;
+      --p1:#ffd7e8; --p2:#c8f7ff; --p3:#d8ffd6; --p4:#fff2c6; --ok:#25c27a; --bad:#ff5577; --warn:#ffb347;
+      --btn:#1e1c2a; --card:#ffffff;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    html{background:var(--bg)}
+    body{margin:0; color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, Apple SD Gothic Neo, Noto Sans KR, sans-serif;}
+
+    /* 게임 화면 */
+    .screen{height:100svh; display:grid; grid-template-rows: 56px 1fr 120px; gap:8px; padding:12px; overflow:hidden}
+    .hidden{display:none !important}
+
+    .status{display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:8px 12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+    .status .left{display:flex; gap:8px; align-items:center; min-width:0}
+    .status .right{display:flex; gap:6px; align-items:center}
+    .chip{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid var(--line); background:linear-gradient(90deg,var(--p2),var(--p3)); font-weight:700}
+
+    .main{display:grid; place-items:center; background:var(--card); border:1px solid var(--line); border-radius:18px; overflow:hidden; padding:12px}
+    .big{width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px}
+    .big-btn{appearance:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; width:min(88vw,420px); height:min(40vh,260px);
+      border-radius:22px; background:linear-gradient(135deg,var(--p1),var(--p2)); color:var(--btn); font-weight:900; font-size:20px; box-shadow:0 8px 0 rgba(0,0,0,0.06);
+      border:2px solid var(--line); overflow:hidden
+    }
+    .big-btn.hasimg{padding:0}
+    .big-btn img{width:100%; height:100%; object-fit:cover}
+
+    .code-area{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; width:100%}
+    .code-area input{width:min(88vw,420px); height:56px; border-radius:14px; border:2px solid var(--line); padding:0 14px; font-size:18px; background:#fff; color:var(--text)}
+    .code-btn{appearance:none; border:none; cursor:pointer; width:min(88vw,420px); height:56px; border-radius:14px; background:linear-gradient(135deg,var(--p2),var(--p3)); border:2px solid var(--line); font-weight:900; font-size:18px}
+
+    .foot{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:10px 12px; display:grid; grid-template-columns:1fr; gap:8px}
+    .msg{font-size:15px}
+    .msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)} .msg.warn{color:var(--warn)}
+
+    /* 힌트 버튼 */
+    .hint-btn{appearance:none; border:none; cursor:pointer; font-size:15px; font-weight:700; 
+      background:linear-gradient(90deg,rgba(255,215,232,.5),rgba(200,247,255,.5));
+      padding:10px 12px; border-radius:12px; border:1px solid var(--line)}
+    .hint-btn:disabled{opacity:.6; cursor:not-allowed}
+
+    /* 제작 화면 */
+    .admin{position:fixed; inset:10px; background:#ffffff; border:2px solid var(--line); border-radius:16px; padding:12px; max-height:calc(100svh - 20px); overflow:auto; box-shadow:0 10px 24px rgba(0,0,0,.08)}
+    .admin h3{margin:6px 0 10px}
+    .grid{display:grid; gap:10px}
+    .two{grid-template-columns:1fr 1fr}
+    @media (max-width:960px){.two{grid-template-columns:1fr}}
+    label{font-size:12px; color:var(--sub)}
+    input,select,textarea{width:100%; padding:10px 12px; border-radius:12px; border:1.5px solid var(--line); background:#fff}
+    button.small{padding:8px 10px; border-radius:10px; border:1.5px solid var(--line); background:#fff; cursor:pointer}
+    .urls{display:flex; flex-wrap:wrap; gap:6px}
+    .urltag{font-size:12px; padding:6px 8px; border-radius:10px; border:1px solid var(--line); background:#fafafa; cursor:pointer}
+
+    /* 세그먼트 박스 */
+    .seg{display:flex; border:1.5px solid var(--line); border-radius:12px; overflow:hidden; width:fit-content}
+    .seg button{appearance:none; border:none; background:#fff; padding:8px 12px; cursor:pointer; font-weight:700}
+    .seg button.active{background:linear-gradient(135deg,var(--p2),var(--p3));}
+
+    /* 함정 리스트 */
+    .trapRow{display:grid; grid-template-columns:1fr 120px 1.7fr 80px; gap:8px; align-items:end}
+    @media (max-width:1200px){ .trapRow{grid-template-columns:1fr 1fr;}}
+
+    /* 팀 설정: 가로 스크롤 컬럼 */
+    .teamColsWrap{overflow-x:auto; padding-bottom:6px}
+    .teamCols{display:grid; grid-auto-flow:column; grid-auto-columns: 420px; gap:12px; align-items:start}
+    .teamCard{border:1.5px solid var(--line); border-radius:12px; padding:10px; background:#fff; min-width:420px}
+    .stageRowX4{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+    .stageRow5{display:grid; grid-template-columns:64px 1fr 1fr 1fr 2fr; gap:8px}
+    .stageHeader{display:grid; grid-template-columns:64px 1fr 1fr 1fr 2fr; gap:8px; font-size:12px; color:var(--sub); margin-bottom:4px; border-bottom:1px dashed var(--line); padding-bottom:4px}
+    .stageBadge{display:flex; align-items:center; justify-content:center; height:38px; border:1.5px solid var(--line); border-radius:10px; background:#fafafa; font-weight:700}
+    @media (max-width:1400px){ .stageRowX4{grid-template-columns:1fr 1fr} }
+
+    /* 공용 모달 */
+    .modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:50}
+    .modal.hidden{display:none}
+    .modal-inner{background:#fff; border-radius:16px; border:2px solid var(--line); width:min(92vw,520px); padding:16px; text-align:center; box-shadow:0 12px 30px rgba(0,0,0,.2); animation:pop .2s ease}
+    .modal-inner img{max-width:100%; height:auto; border-radius:12px; border:1px solid var(--line)}
+    .modal-inner h3{margin:8px 0 10px}
+    @keyframes pop{from{transform:scale(.95); opacity:0} to{transform:scale(1); opacity:1}}
+
+    /* 결과 모달 색상 */
+    .modal-inner.success{border-color:#b7f5c9; box-shadow:0 12px 30px rgba(37,194,122,.25)}
+    .modal-inner.fail{border-color:#ffb6c3; box-shadow:0 12px 30px rgba(255,85,119,.25)}
+  </style>
+</head>
+<body>
+  <!-- 게임 화면: team 파라미터 있을 때만 표시 -->
+  <div class="screen hidden" id="gameScreen">
+    <div class="status">
+      <div class="left">
+        <span id="title">🍓 NFC 미션</span>
+        <span class="chip" id="teamChip">TEAM</span>
+      </div>
+      <div class="right" id="statusLine">진행 0/0 | ○○○○○</div>
+    </div>
+
+    <div class="main">
+      <div class="big" id="stageArea">
+        <button id="btnScan" class="big-btn">스캔 시작</button>
+      </div>
+    </div>
+
+    <div class="foot">
+      <div class="msg" id="msg">준비 완료. 스티커를 태그하세요.</div>
+      <button id="btnHint" class="hint-btn" disabled>힌트 보기</button>
+    </div>
+  </div>
+
+  <!-- 완료 팝업(기존 유지) -->
+  <div class="modal hidden" id="completeModal">
+    <div class="modal-inner">
+      <h3>모든 미션 완료!</h3>
+      <img id="completeImg" alt="complete" src=""/>
+      <div style="margin-top:10px"><button class="small" id="btnCloseModal">닫기</button></div>
+    </div>
+  </div>
+
+  <!-- 힌트 팝업 -->
+  <div class="modal hidden" id="hintModal">
+    <div class="modal-inner">
+      <h3>힌트</h3>
+      <img id="hintImg" alt="hint" src="" style="display:none"/>
+      <div id="hintText" style="margin-top:8px; font-size:15px"></div>
+      <div style="margin-top:10px"><button class="small" id="btnCloseHint">닫기</button></div>
+    </div>
+  </div>
+
+  <!-- 코드 결과 팝업 -->
+  <div class="modal hidden" id="resultModal">
+    <div class="modal-inner" id="resultInner">
+      <div id="resultIcon" style="font-size:56px">✅</div>
+      <h3 id="resultTitle">정답!</h3>
+      <div id="resultMsg" style="font-size:15px">다음 단계로 이동하세요.</div>
+      <div style="margin-top:10px"><button class="small" id="btnCloseResult">확인</button></div>
+    </div>
+  </div>
+
+  <!-- 제작 화면 -->
+  <div class="admin" id="admin">
+    <h3>제작화면 · 관리자</h3>
+
+    <div class="grid two" style="margin-top:6px">
+      <div>
+        <label>제목</label>
+        <input id="cfgTitle" placeholder="NFC 미션" />
+      </div>
+      <div>
+        <label>단계 수</label>
+        <input id="cfgStages" type="number" min="1" max="20" value="5" />
+      </div>
+    </div>
+
+    <div class="grid two">
+      <div>
+        <label>스캔 버튼 이미지 URL</label>
+        <input id="cfgScanImg" placeholder="https://.../scan.png" />
+      </div>
+      <div>
+        <label>오답 처리(코드 틀림)</label>
+        <div class="seg" id="wrongSeg">
+          <button data-v="keep" class="active">유지</button>
+          <button data-v="back1">한 단계 뒤로</button>
+          <button data-v="reset">1단계로 초기화</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid two">
+      <div>
+        <label>태그 실패 처리(다른 단계 NFC)</label>
+        <div class="seg" id="tagFailSeg">
+          <button data-v="keep" class="active">유지</button>
+          <button data-v="back1">한 단계 뒤로</button>
+          <button data-v="reset1">1단계로</button>
+        </div>
+      </div>
+      <div>
+        <label>완료 팝업 이미지 URL</label>
+        <input id="cfgCompleteImg" placeholder="https://.../congrats.png" />
+      </div>
+    </div>
+
+    <div class="grid two">
+      <div>
+        <label>함정 NFC</label>
+        <div id="trapBox" class="grid"></div>
+        <button class="small" id="btnAddTrap">함정 추가</button>
+      </div>
+      <div>
+        <label>마지막 완료 메시지</label>
+        <input id="cfgFinal" placeholder="모든 미션 완료! 교실로 복귀하세요." />
+      </div>
+    </div>
+
+    <hr/>
+    <h4>팀 구성과 단계 설정</h4>
+    <div class="grid two" style="margin-bottom:6px">
+      <div>
+        <label>팀 수</label>
+        <input id="cfgTeams" type="number" min="1" max="24" value="3" />
+      </div>
+      <div></div>
+    </div>
+
+    <div class="teamColsWrap"><div id="teamsBox" class="teamCols"></div></div>
+
+    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap">
+      <button class="small" id="btnSave">저장</button>
+      <button class="small" id="btnShare">제작 링크 복사</button>
+      <button class="small" id="btnGen">팀별 링크 생성</button>
+    </div>
+    <div class="urls" id="urlList" style="margin-top:8px"></div>
+  </div>
+
+  <script>
+  /* ===================== 유틸 ===================== */
+  const el = (id)=>document.getElementById(id);
+  const $ = (sel)=>document.querySelector(sel);
+
+  const b64enc = (str)=>btoa(unescape(encodeURIComponent(str)));
+  const b64dec = (b64)=>decodeURIComponent(escape(atob(b64)));
+
+  const encodeCfg = (obj)=>b64enc(JSON.stringify(obj));
+  const decodeCfg = (b64)=>JSON.parse(b64dec(b64));
+
+  function getBase(){ const url = new URL(location.href); url.search=''; url.hash=''; return url.toString().replace(/#$/,''); }
+  const teamParam = ()=>new URLSearchParams(location.search).get('team') || '';
+  function hashCfg(){ const h=location.hash.replace(/^#/,''); const sp=new URLSearchParams(h); return sp.get('cfg')||''; }
+
+  /* ===================== 데이터 구조 ===================== */
+  const DEFAULT_V24 = {
+    title: 'NFC 미션',
+    stages: 5,
+    ui: { scanImg:'', completeImg:'' },
+    wrongPolicy: 'keep',     // 코드 오답: keep | back1 | reset
+    nfcFailPolicy: 'keep',   // 태그 실패: keep | back1 | reset1
+    traps: [ /* { token:'TRAP1', mode:'reset1', message:'함정입니다. 1단계로 돌아갑니다.' } */ ],
+    finalMessage: '모든 미션 완료! 교실로 복귀하세요.',
+    teams: [
+      { name:'1팀', slug:'t1', steps: Array.from({length:5}, ()=>({place:'', token:'', code:'', hint:'', hintImg:''})) },
+      { name:'2팀', slug:'t2', steps: Array.from({length:5}, ()=>({place:'', token:'', code:'', hint:'', hintImg:''})) },
+      { name:'3팀', slug:'t3', steps: Array.from({length:5}, ()=>({place:'', token:'', code:'', hint:'', hintImg:''})) }
+    ]
+  };
+
+  function loadConfig(){
+    const fromHash = hashCfg();
+    if(fromHash){ try{ const cfg = decodeCfg(fromHash); localStorage.setItem('nfc-mission-v24:config', JSON.stringify(cfg)); return cfg; }catch(_){} }
+    const raw = localStorage.getItem('nfc-mission-v24:config');
+    return raw ? JSON.parse(raw) : structuredClone(DEFAULT_V24);
+  }
+  function saveConfig(){ localStorage.setItem('nfc-mission-v24:config', JSON.stringify(CONFIG)); }
+
+  const currentTeam = ()=> CONFIG.teams.find(t=>t.slug===teamParam()) || null;
+  const stateKey = ()=> `nfc-mission-v24:state:${currentTeam()?.slug || 'default'}`;
+  function loadState(){ const raw=localStorage.getItem(stateKey()); return raw ? JSON.parse(raw) : { stage:1, lastHint:'', lastHintImg:'' }; }
+  function saveState(){ localStorage.setItem(stateKey(), JSON.stringify(STATE)); }
+
+  async function sha256(str){ const enc=new TextEncoder().encode(String(str)); const buf=await crypto.subtle.digest('SHA-256', enc); return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join(''); }
+
+  let CONFIG = loadConfig();
+  let STATE = loadState();
+  let ndef = null;
+  let scanOK = false;
+  let useCodeUI = false;
+
+  /* ===================== 효과음 ===================== */
+  let ACTX = null;
+  function playTone(seq){
+    try{
+      if(!ACTX) ACTX = new (window.AudioContext||window.webkitAudioContext)();
+      const t0 = ACTX.currentTime + 0.01; let cur = t0;
+      seq.forEach(s=>{
+        const o = ACTX.createOscillator();
+        const g = ACTX.createGain();
+        o.type = s.type||'sine'; o.frequency.value = s.freq;
+        g.gain.setValueAtTime(0.001, cur);
+        g.gain.linearRampToValueAtTime((s.vol||0.2), cur+0.01);
+        g.gain.exponentialRampToValueAtTime(0.001, cur + s.dur - 0.01);
+        o.connect(g).connect(ACTX.destination);
+        o.start(cur); o.stop(cur + s.dur);
+        cur += s.dur + (s.gap||0);
+      });
+    }catch(e){}
+  }
+  const playOK  = ()=>playTone([{freq:880,dur:0.12,vol:0.25,type:'sine'},{freq:1320,dur:0.12,vol:0.25,type:'sine',gap:0.02}]);
+  const playBad = ()=>playTone([{freq:330,dur:0.18,vol:0.25,type:'square'},{freq:220,dur:0.22,vol:0.25,type:'square',gap:0.02}]);
+
+  /* ===================== 초기 모드 ===================== */
+  const IS_PLAY = !!teamParam();
+  init();
+
+  function init(){
+    if(IS_PLAY){
+      el('admin').classList.add('hidden');
+      $('#gameScreen').classList.remove('hidden');
+
+      const t = currentTeam();
+      el('title').textContent = `🍓 ${CONFIG.title}`;
+      el('teamChip').textContent = t ? t.name : 'TEAM';
+      renderStatusLine();
+      applyScanImage();
+      if(!('NDEFReader' in window)) setMsg('이 활동은 NFC 지원 기기에서만 진행됩니다.', 'warn');
+      el('btnScan').addEventListener('click', onScanClick);
+      $('#btnHint').addEventListener('click', showHintPopup);
+      if(STATE.stage>CONFIG.stages) setHint(CONFIG.finalMessage); 
+      else if(STATE.lastHint) setHint(STATE.lastHint, STATE.lastHintImg);
+      showScanUI();
+    } else {
+      $('#gameScreen').classList.add('hidden');
+      el('admin').classList.remove('hidden');
+
+      // 기본값 주입
+      el('cfgTitle').value = CONFIG.title;
+      el('cfgStages').value = CONFIG.stages;
+      el('cfgScanImg').value = CONFIG.ui.scanImg||'';
+      el('cfgCompleteImg').value = CONFIG.ui.completeImg||'';
+      // 세그먼트
+      updateSeg('wrongSeg', CONFIG.wrongPolicy||'keep', v=>CONFIG.wrongPolicy=v);
+      updateSeg('tagFailSeg', CONFIG.nfcFailPolicy||'keep', v=>CONFIG.nfcFailPolicy=v);
+      // 함정 리스트
+      renderTraps();
+      // 완료 메시지
+      el('cfgFinal').value = CONFIG.finalMessage||'';
+      // 팀 패널
+      renderTeamsPanel();
+
+      // 이벤트
+      el('cfgStages').addEventListener('change', ()=>{ collectAdmin(); renderTeamsPanel(); });
+      el('cfgTeams').addEventListener('change',  ()=>{ collectAdmin(); renderTeamsPanel(); });
+      el('btnAddTrap').addEventListener('click', ()=>{ CONFIG.traps.push({token:'', mode:'reset1', message:'함정입니다. 1단계로 돌아갑니다.'}); renderTraps(); });
+      el('btnSave').addEventListener('click', ()=>{ collectAdmin(); saveConfig(); alert('저장 완료'); });
+      el('btnShare').addEventListener('click', ()=>{ collectAdmin(); const b64=encodeCfg(CONFIG); const base=getBase(); const url=`${base}#cfg=${b64}`; navigator.clipboard.writeText(url).then(()=>alert('제작 링크가 복사되었습니다. 이 링크로 설정을 불러올 수 있습니다.')); });
+      el('btnGen').addEventListener('click', ()=>{ collectAdmin(); const base=getBase(); const b64=encodeCfg(CONFIG); const box=el('urlList'); box.innerHTML=''; CONFIG.teams.forEach(t=>{ const u=`${base}?team=${encodeURIComponent(t.slug)}#cfg=${b64}`; const s=document.createElement('span'); s.className='urltag'; s.textContent = `${t.name}: ${u}`; s.addEventListener('click', ()=>{ navigator.clipboard.writeText(u); alert(`${t.name} 링크 복사됨`); }); box.appendChild(s); }); });
+    }
+  }
+
+  /* ===================== 렌더 함수 ===================== */
+  function renderStatusLine(){ const total=CONFIG.stages; const cur=Math.min(STATE.stage,total); const done='✓'.repeat(Math.max(0,cur-1)); const left='○'.repeat(Math.max(0,total-cur+1)); el('statusLine').textContent = `진행 ${cur}/${total} | ${done}${left}`; }
+  function applyScanImage(){ const sURL=(CONFIG.ui.scanImg||'').trim(); const btn=el('btnScan'); if(sURL){ btn.classList.add('hasimg'); btn.innerHTML = `<img alt="scan" src="${sURL}">`; } else { btn.classList.remove('hasimg'); btn.textContent='스캔 시작'; } }
+
+  function showScanUI(){ useCodeUI=false; scanOK=false; const area=el('stageArea'); area.innerHTML=''; const btn=document.createElement('button'); btn.id='btnScan'; btn.className='big-btn'; btn.textContent='스캔 시작'; const sURL=(CONFIG.ui.scanImg||'').trim(); if(sURL){ btn.classList.add('hasimg'); btn.innerHTML=`<img alt="scan" src="${sURL}">`; } area.appendChild(btn); btn.addEventListener('click', onScanClick); }
+  function showCodeUI(){ useCodeUI=true; const area=el('stageArea'); area.innerHTML=''; const wrap=document.createElement('div'); wrap.className='code-area'; const p=document.createElement('div'); p.style.fontSize='15px'; p.textContent='미션을 통해 획득한 코드를 입력하세요.'; wrap.appendChild(p); const inp=document.createElement('input'); inp.id='codeInput'; inp.placeholder='예: 5712'; inp.inputMode='numeric'; wrap.appendChild(inp); const btn=document.createElement('button'); btn.id='btnCode'; btn.className='code-btn'; btn.textContent='코드 제출'; wrap.appendChild(btn); area.appendChild(wrap); btn.addEventListener('click', onSubmitCode); }
+
+  function updateSeg(id, val, onSet){ const seg=el(id); seg.querySelectorAll('button').forEach(b=>{ b.classList.toggle('active', b.dataset.v===val); b.onclick=()=>{ onSet(b.dataset.v); updateSeg(id, b.dataset.v, onSet); }; }); }
+
+  function renderTraps(){ const box=el('trapBox'); box.innerHTML=''; if(!Array.isArray(CONFIG.traps)) CONFIG.traps=[]; CONFIG.traps.forEach((tr, i)=>{ const row=document.createElement('div'); row.className='trapRow'; row.innerHTML=`
+      <div><label>NFC 텍스트</label><input data-i="${i}" data-k="token" placeholder="예: TRAP1" value="${tr.token||''}"></div>
+      <div><label>동작</label><select data-i="${i}" data-k="mode"><option value="reset1">1단계로</option><option value="back1">한 단계 뒤로</option></select></div>
+      <div><label>메시지</label><input data-i="${i}" data-k="message" placeholder="함정입니다. 1단계로 돌아갑니다." value="${tr.message||''}"></div>
+      <div><label>&nbsp;</label><button class="small" data-i="${i}" data-k="del">삭제</button></div>
+    `; box.appendChild(row); row.querySelector(`select[data-i="${i}"][data-k="mode"]`).value = tr.mode||'reset1';
+    // listeners
+    row.querySelectorAll('input[data-i], select[data-i]').forEach(inp=>{ const k=inp.dataset.k; const idx=parseInt(inp.dataset.i,10); if(k==='del') return; inp.addEventListener('input', e=>{ CONFIG.traps[idx][k]=e.target.value; }); inp.addEventListener('change', e=>{ CONFIG.traps[idx][k]=e.target.value; }); });
+    row.querySelector('button[data-k="del"]').addEventListener('click', ()=>{ CONFIG.traps.splice(i,1); renderTraps(); });
+  }); }
+
+  function ensureTeamShape(t){ while(t.steps.length < CONFIG.stages){ t.steps.push({place:'', token:'', code:'', hint:'', hintImg:''}); } if(t.steps.length > CONFIG.stages){ t.steps = t.steps.slice(0, CONFIG.stages); } }
+  function makeTeam(n){ const steps=Array.from({length:CONFIG.stages}, ()=>({place:'', token:'', code:'', hint:'', hintImg:''})); return { name:`${n}팀`, slug:`t${n}`, steps }; }
+
+  function renderTeamsPanel(){
+    // 팀 수 보정
+    let want=parseInt(el('cfgTeams').value||CONFIG.teams.length||1,10); if(isNaN(want)||want<1) want=1; if(want>24) want=24;
+    if(!Array.isArray(CONFIG.teams)) CONFIG.teams=[];
+    while(CONFIG.teams.length < want){ CONFIG.teams.push(makeTeam(CONFIG.teams.length+1)); }
+    while(CONFIG.teams.length > want){ CONFIG.teams.pop(); }
+
+    const box = el('teamsBox'); box.innerHTML='';
+    CONFIG.teams.forEach((t,ti)=>{
+      ensureTeamShape(t);
+      const card = document.createElement('div'); card.className='teamCard';
+      let rows='';
+      rows += `<div class="stageHeader"><div>단계</div><div>장소</div><div>NFC 텍스트</div><div>코드</div><div>다음 힌트</div></div>`;
+      for(let i=0;i<CONFIG.stages;i++){
+        const badge = `<div class="stageBadge">${i+1}단계</div>`;
+        const place = `<input data-k="place" data-ti="${ti}" data-si="${i}" placeholder="예: 과학실" value="${t.steps[i]?.place||''}">`;
+        const token = `<input data-k="token" data-ti="${ti}" data-si="${i}" placeholder="예: SCIENCE" value="${t.steps[i]?.token||''}">`;
+        const code  = `<input data-k="code"  data-ti="${ti}" data-si="${i}" placeholder="예: 5712" value="${t.steps[i]?.code||''}">`;
+        const hint  = `
+          <div class="grid" style="gap:6px">
+            <input data-k="hint" data-ti="${ti}" data-si="${i}" placeholder="예: 과학실 책장 뒤" value="${t.steps[i]?.hint||''}">
+            <input data-k="hintImg" data-ti="${ti}" data-si="${i}" placeholder="힌트 이미지 URL(선택)" value="${t.steps[i]?.hintImg||''}">
+          </div>`;
+        rows += `<div class="stageRow5">${badge}<div>${place}</div><div>${token}</div><div>${code}</div><div>${hint}</div></div>`;
+      }
+      card.innerHTML = `
+        <div class="grid two" style="margin-bottom:6px">
+          <div><label>팀 이름</label><input data-k="tname" data-ti="${ti}" value="${t.name}"></div>
+          <div><label>URL 식별자</label><input data-k="slug" data-ti="${ti}" value="${t.slug}"></div>
+        </div>
+        <div class="grid">${rows}</div>
+      `;
+      box.appendChild(card);
+      // listeners
+      card.querySelector('input[data-k="tname"]').addEventListener('input', e=>{ t.name = e.target.value; });
+      card.querySelector('input[data-k="slug"]').addEventListener('input', e=>{ t.slug = e.target.value; });
+      card.querySelectorAll('input[data-k]').forEach(inp=>{ const k=inp.dataset.k; if(k==='tname'||k==='slug') return; inp.addEventListener('input', e=>{ const i=parseInt(e.target.dataset.si,10); t.steps[i] = t.steps[i]||{place:'',token:'',code:'',hint:'',hintImg:''}; t.steps[i][k]=e.target.value; }); });
+    });
+  }
+
+  function collectAdmin(){
+    CONFIG.title = (el('cfgTitle').value||'NFC 미션').trim();
+    CONFIG.stages = Math.max(1, Math.min(20, parseInt(el('cfgStages').value||'5',10)));
+    CONFIG.ui.scanImg = (el('cfgScanImg').value||'').trim();
+    CONFIG.ui.completeImg = (el('cfgCompleteImg').value||'').trim();
+    // 세그 값
+    CONFIG.wrongPolicy = el('wrongSeg').querySelector('button.active')?.dataset.v || 'keep';
+    CONFIG.nfcFailPolicy = el('tagFailSeg').querySelector('button.active')?.dataset.v || 'keep';
+    // 함정 DOM에서 수집
+    const rows = el('trapBox').querySelectorAll('.trapRow');
+    CONFIG.traps = Array.from(rows).map(r=>({
+      token: r.querySelector('input[data-k="token"]').value.trim(),
+      mode: r.querySelector('select[data-k="mode"]').value,
+      message: r.querySelector('input[data-k="message"]').value.trim() || '함정입니다.'
+    })).filter(x=>x.token);
+    CONFIG.finalMessage = (el('cfgFinal').value||'모든 미션 완료! 교실로 복귀하세요.').trim();
+  }
+
+  /* ===================== 스캔/코드 처리 ===================== */
+  async function onScanClick(){
+    if(!('NDEFReader' in window)) return setMsg('이 활동은 NFC 지원 기기에서만 진행됩니다.', 'warn');
+    try{
+      if(!ndef) ndef = new NDEFReader();
+      await ndef.scan();
+      setMsg('스캔 대기 중… 스티커에 가져다 대세요.','');
+      ndef.onreading = (ev)=>{
+        const text = extractText(ev.message.records);
+        if(!text){ setMsg('인식 실패: 텍스트 레코드가 없습니다.','bad'); playBad(); return; }
+        verifyToken(text.trim());
+      };
+    }catch(e){ setMsg('스캔 시작 실패: '+ e.message, 'bad'); playBad(); }
+  }
+  function extractText(records){
+    for(const r of records){
+      try{
+        if(r.recordType==='text'){ return new TextDecoder(r.encoding||'utf-8').decode(r.data); }
+        if(r.recordType==='url'){  return new TextDecoder('utf-8').decode(r.data); }
+      }catch{}
+    } return '';
+  }
+
+  function verifyToken(token){
+    const TK = String(token).toUpperCase();
+    // 1) 함정 우선
+    const trap = (CONFIG.traps||[]).find(tr=>String(tr.token).toUpperCase()===TK);
+    if(trap){
+      if(trap.mode==='reset1') STATE.stage=1; else STATE.stage=Math.max(1, STATE.stage-1);
+      saveState(); renderStatusLine(); setHint(''); setMsg(trap.message||'함정입니다.', 'bad'); playBad(); showScanUI(); return;
+    }
+
+    // 2) 정상 단계
+    const t = currentTeam(); if(!t){ setMsg('설정 오류: 팀 링크가 필요합니다.','bad'); playBad(); return; }
+    const idx = Math.min(STATE.stage, CONFIG.stages)-1; const step = t.steps[idx]; if(!step){ setMsg('설정 오류: 단계 데이터가 없습니다.','bad'); playBad(); return; }
+    const expect = String(step.token||'').toUpperCase();
+    if(TK === expect){ scanOK = true; setMsg('스캔 성공', 'ok'); playOK(); showCodeUI(); }
+    else {
+      setMsg('실패: 다른 단계의 NFC 태그입니다.', 'bad'); playBad();
+      const pol = CONFIG.nfcFailPolicy||'keep';
+      if(pol==='reset1'){ STATE.stage=1; STATE.lastHint=''; STATE.lastHintImg=''; saveState(); renderStatusLine(); setHint('초기화됨. 1단계부터 다시 시작하세요.'); }
+      else if(pol==='back1'){ STATE.stage=Math.max(1, STATE.stage-1); saveState(); renderStatusLine(); setHint('한 단계 뒤로 이동했습니다.'); }
+      showScanUI();
+    }
+  }
+
+  async function onSubmitCode(){
+    if(!scanOK) return setMsg('먼저 스캔을 완료하세요.','warn');
+    const t = currentTeam(); const idx = Math.min(STATE.stage, CONFIG.stages)-1; const step = t.steps[idx];
+    const input = (document.getElementById('codeInput').value||'').trim(); if(!input) return setMsg('코드를 입력하세요.','warn');
+    const ok = await sha256(String(step.code||'')) === await sha256(String(input));
+    if(ok){
+      const hint = step.hint||'';
+      playOK();
+      showResultPopup(true, '정답!', '다음 단계로 이동하세요.');
+      if(STATE.stage >= CONFIG.stages){
+        STATE.stage = CONFIG.stages + 1;
+        setHint(CONFIG.finalMessage);
+        saveState(); renderStatusLine();
+        showCompletePopup();
+      } else {
+        STATE.stage += 1;
+        setHint(hint==='끝'? CONFIG.finalMessage : hint, step.hintImg||'');
+        saveState(); renderStatusLine();
+      }
+      setMsg('정답! 다음 단계로 이동하세요.','ok');
+      showScanUI();
+    } else {
+      setMsg('코드가 틀렸습니다.','bad'); playBad();
+      showResultPopup(false, '실패!', '코드를 다시 확인하세요.');
+      const pol = (CONFIG.wrongPolicy||'keep');
+      if(pol==='reset'){
+        STATE.stage=1; STATE.lastHint=''; STATE.lastHintImg='';
+        saveState(); renderStatusLine(); setHint('초기화됨. 1단계부터 다시 시작하세요.');
+        showScanUI();
+      } else if(pol==='back1'){
+        STATE.stage=Math.max(1, STATE.stage-1);
+        saveState(); renderStatusLine(); setHint('한 단계 뒤로 이동했습니다.');
+        showScanUI();
+      }
+    }
+  }
+
+  function setMsg(text, type){ const m=el('msg'); m.textContent=text; m.className='msg'; if(type) m.classList.add(type); }
+  function setHint(text, img){
+    const has = !!(text && text.trim().length);
+    const btn = el('btnHint');
+    btn.disabled = !has;
+    STATE.lastHint = has ? text : '';
+    STATE.lastHintImg = has ? (img||'') : '';
+    saveState();
+  }
+
+  function showHintPopup(){
+    const m = el('hintModal'); const img = el('hintImg'); const textEl = el('hintText');
+    const txt = STATE.lastHint || '힌트가 없습니다.';
+    const src = STATE.lastHintImg || '';
+    textEl.textContent = txt;
+    if(src){ img.src = src; img.style.display='block'; } else { img.style.display='none'; }
+    m.classList.remove('hidden');
+    el('btnCloseHint').onclick = ()=> m.classList.add('hidden');
+  }
+
+  function showResultPopup(isOK, title, msg){
+    const m = el('resultModal'); const inner = el('resultInner');
+    el('resultIcon').textContent = isOK ? '✅' : '❌';
+    el('resultTitle').textContent = title;
+    el('resultMsg').textContent = msg || '';
+    inner.classList.remove('success','fail');
+    inner.classList.add(isOK ? 'success' : 'fail');
+    m.classList.remove('hidden');
+    el('btnCloseResult').onclick = ()=> m.classList.add('hidden');
+  }
+
+  function showCompletePopup(){
+    try{
+      const m = el('completeModal'); const img = el('completeImg'); const src = (CONFIG.ui.completeImg||'').trim();
+      if(src){ img.src = src; img.style.display='block'; } else { img.style.display='none'; }
+      m.classList.remove('hidden'); el('btnCloseModal').onclick = ()=> m.classList.add('hidden');
+    }catch(e){}
+  }
+  </script>
+</body>
+</html>
